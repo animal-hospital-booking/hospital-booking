@@ -2,21 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Calendar from "@/components/Calendar";
-import TimeSlots from "@/components/TimeSlots";
 import ConsultationType from "@/components/ConsultationType";
+import WeeklySchedule from "@/components/WeeklySchedule";
 import PetForm, { type PetInfo } from "@/components/PetForm";
 import PatientForm from "@/components/PatientForm";
-import { addBooking, getBookedTimes } from "@/lib/bookings";
+import { addBooking } from "@/lib/bookings";
 import { sendConfirmationEmail } from "@/lib/email";
 
-type Step = "date" | "time" | "consultation" | "pet" | "patient" | "confirm" | "done";
+type Step = "consultation" | "schedule" | "pet" | "patient" | "confirm" | "done";
 
 export default function Home() {
-  const [step, setStep] = useState<Step>("date");
+  const [step, setStep] = useState<Step>("consultation");
+  const [consultationType, setConsultationType] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [consultationType, setConsultationType] = useState<string | null>(null);
   const [petInfo, setPetInfo] = useState<PetInfo | null>(null);
   const [patientInfo, setPatientInfo] = useState<{
     name: string;
@@ -66,29 +65,24 @@ export default function Home() {
   };
 
   const handleReset = () => {
+    setConsultationType(null);
     setSelectedDate(null);
     setSelectedTime(null);
-    setConsultationType(null);
     setPetInfo(null);
     setPatientInfo(null);
     setEmailSent(false);
-    setStep("date");
+    setStep("consultation");
   };
 
-  const bookedTimes = selectedDate
-    ? getBookedTimes(formatDateStr(selectedDate))
-    : [];
-
   const progressSteps = [
-    { key: "date", label: "日付" },
-    { key: "time", label: "時間" },
     { key: "consultation", label: "診察" },
+    { key: "schedule", label: "日時" },
     { key: "pet", label: "ペット" },
     { key: "patient", label: "飼い主" },
     { key: "confirm", label: "確認" },
   ];
 
-  const stepOrder: Step[] = ["date", "time", "consultation", "pet", "patient", "confirm"];
+  const stepOrder: Step[] = ["consultation", "schedule", "pet", "patient", "confirm"];
   const currentIndex = stepOrder.indexOf(step === "done" ? "confirm" : step);
 
   return (
@@ -119,7 +113,7 @@ export default function Home() {
               <div key={s.key} className="flex items-center gap-1">
                 {i > 0 && (
                   <div
-                    className={`w-4 h-0.5 ${isActive ? "bg-blue-500" : "bg-gray-200"}`}
+                    className={`w-5 h-0.5 ${isActive ? "bg-blue-500" : "bg-gray-200"}`}
                   />
                 )}
                 <div className="flex flex-col items-center">
@@ -145,76 +139,42 @@ export default function Home() {
           })}
         </div>
 
-        {/* Step 1: Date */}
-        {step === "date" && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              診察日を選択してください
-            </h2>
-            <Calendar
-              selectedDate={selectedDate}
-              onSelectDate={(date) => {
-                setSelectedDate(date);
-                setSelectedTime(null);
-                setStep("time");
-              }}
-            />
-            <p className="text-xs text-gray-400 mt-4 text-center">
-              ※ 日曜日は休診日です
-            </p>
-          </div>
-        )}
-
-        {/* Step 2: Time */}
-        {step === "time" && selectedDate && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <button
-              onClick={() => setStep("date")}
-              className="text-blue-600 hover:text-blue-800 text-sm mb-4"
-            >
-              ← 戻る
-            </button>
-            <h2 className="text-lg font-bold text-gray-800 mb-1">
-              時間を選択してください
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {formatDate(selectedDate)}
-            </p>
-            <TimeSlots
-              selectedTime={selectedTime}
-              bookedTimes={bookedTimes}
-              onSelectTime={(time) => {
-                setSelectedTime(time);
-                setStep("consultation");
-              }}
-            />
-          </div>
-        )}
-
-        {/* Step 3: Consultation Type */}
+        {/* Step 1: Consultation Type */}
         {step === "consultation" && (
           <ConsultationType
             selected={consultationType}
             onSelect={(type) => {
               setConsultationType(type);
-              setStep("pet");
+              setStep("schedule");
             }}
-            onBack={() => setStep("time")}
+            onBack={() => {}}
           />
         )}
 
-        {/* Step 4: Pet Info */}
+        {/* Step 2: Weekly Schedule */}
+        {step === "schedule" && (
+          <WeeklySchedule
+            onSelect={(date, time) => {
+              setSelectedDate(date);
+              setSelectedTime(time);
+              setStep("pet");
+            }}
+            onBack={() => setStep("consultation")}
+          />
+        )}
+
+        {/* Step 3: Pet Info */}
         {step === "pet" && (
           <PetForm
             onSubmit={(data) => {
               setPetInfo(data);
               setStep("patient");
             }}
-            onBack={() => setStep("consultation")}
+            onBack={() => setStep("schedule")}
           />
         )}
 
-        {/* Step 5: Patient (Owner) Info */}
+        {/* Step 4: Patient (Owner) Info */}
         {step === "patient" && (
           <PatientForm
             onSubmit={(data) => {
@@ -225,7 +185,7 @@ export default function Home() {
           />
         )}
 
-        {/* Step 6: Confirmation */}
+        {/* Step 5: Confirmation */}
         {step === "confirm" &&
           selectedDate &&
           selectedTime &&
@@ -241,16 +201,16 @@ export default function Home() {
                   <p className="text-xs font-semibold text-gray-400 mb-2">予約情報</p>
                   <div className="space-y-2">
                     <div className="flex justify-between">
+                      <span className="text-gray-500">診察内容</span>
+                      <span className="font-medium text-gray-800">{consultationType}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500">日付</span>
                       <span className="font-medium text-gray-800">{formatDate(selectedDate)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">時間</span>
                       <span className="font-medium text-gray-800">{selectedTime}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">診察内容</span>
-                      <span className="font-medium text-gray-800">{consultationType}</span>
                     </div>
                   </div>
                 </div>

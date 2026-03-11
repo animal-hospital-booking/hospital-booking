@@ -3,7 +3,7 @@
 type ConsultationTypeProps = {
   selected: string | null;
   onSelect: (type: string) => void;
-  onBack: () => void;
+  onBack?: () => void;
 };
 
 const TYPES = [
@@ -20,12 +20,14 @@ export default function ConsultationType({
 }: ConsultationTypeProps) {
   return (
     <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-sm p-6">
-      <button
-        onClick={onBack}
-        className="text-blue-600 hover:text-blue-800 text-sm mb-4"
-      >
-        ← 戻る
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+        >
+          ← 戻る
+        </button>
+      )}
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         診察内容を選択してください
       </h2>
