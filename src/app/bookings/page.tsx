@@ -86,20 +86,27 @@ export default function BookingsPage() {
                   </span>
                 </div>
                 <div className="text-sm text-gray-600 space-y-1">
+                  {booking.consultationType && (
+                    <p>
+                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                        {booking.consultationType}
+                      </span>
+                    </p>
+                  )}
+                  {booking.pet && (
+                    <p>
+                      <span className="text-gray-400">ペット：</span>
+                      {booking.pet.petName}（{booking.pet.petSpecies}{booking.pet.petBreed ? ` / ${booking.pet.petBreed}` : ""}・{booking.pet.petSex}）
+                    </p>
+                  )}
                   <p>
-                    <span className="text-gray-400">氏名：</span>
+                    <span className="text-gray-400">飼い主：</span>
                     {booking.name}
                   </p>
                   <p>
                     <span className="text-gray-400">電話：</span>
                     {booking.phone}
                   </p>
-                  {booking.email && (
-                    <p>
-                      <span className="text-gray-400">メール：</span>
-                      {booking.email}
-                    </p>
-                  )}
                   {booking.symptoms && (
                     <p>
                       <span className="text-gray-400">症状：</span>

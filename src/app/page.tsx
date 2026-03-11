@@ -4,16 +4,20 @@ import { useState } from "react";
 import Link from "next/link";
 import Calendar from "@/components/Calendar";
 import TimeSlots from "@/components/TimeSlots";
+import ConsultationType from "@/components/ConsultationType";
+import PetForm, { type PetInfo } from "@/components/PetForm";
 import PatientForm from "@/components/PatientForm";
 import { addBooking, getBookedTimes } from "@/lib/bookings";
 import { sendConfirmationEmail } from "@/lib/email";
 
-type Step = "date" | "time" | "patient" | "confirm" | "done";
+type Step = "date" | "time" | "consultation" | "pet" | "patient" | "confirm" | "done";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("date");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [consultationType, setConsultationType] = useState<string | null>(null);
+  const [petInfo, setPetInfo] = useState<PetInfo | null>(null);
   const [patientInfo, setPatientInfo] = useState<{
     name: string;
     phone: string;
@@ -31,29 +35,8 @@ export default function Home() {
     return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${weekdays[d.getDay()]})`;
   };
 
-  const handleSelectDate = (date: Date) => {
-    setSelectedDate(date);
-    setSelectedTime(null);
-    setStep("time");
-  };
-
-  const handleSelectTime = (time: string) => {
-    setSelectedTime(time);
-    setStep("patient");
-  };
-
-  const handlePatientSubmit = (data: {
-    name: string;
-    phone: string;
-    email: string;
-    symptoms: string;
-  }) => {
-    setPatientInfo(data);
-    setStep("confirm");
-  };
-
   const handleConfirm = async () => {
-    if (!selectedDate || !selectedTime || !patientInfo) return;
+    if (!selectedDate || !selectedTime || !consultationType || !petInfo || !patientInfo) return;
 
     setSending(true);
     const dateStr = formatDateStr(selectedDate);
@@ -61,10 +44,12 @@ export default function Home() {
     addBooking({
       date: dateStr,
       time: selectedTime,
+      consultationType,
       name: patientInfo.name,
       phone: patientInfo.phone,
       email: patientInfo.email,
       symptoms: patientInfo.symptoms,
+      pet: petInfo,
     });
 
     const sent = await sendConfirmationEmail({
@@ -83,6 +68,8 @@ export default function Home() {
   const handleReset = () => {
     setSelectedDate(null);
     setSelectedTime(null);
+    setConsultationType(null);
+    setPetInfo(null);
     setPatientInfo(null);
     setEmailSent(false);
     setStep("date");
@@ -91,6 +78,18 @@ export default function Home() {
   const bookedTimes = selectedDate
     ? getBookedTimes(formatDateStr(selectedDate))
     : [];
+
+  const progressSteps = [
+    { key: "date", label: "日付" },
+    { key: "time", label: "時間" },
+    { key: "consultation", label: "診察" },
+    { key: "pet", label: "ペット" },
+    { key: "patient", label: "飼い主" },
+    { key: "confirm", label: "確認" },
+  ];
+
+  const stepOrder: Step[] = ["date", "time", "consultation", "pet", "patient", "confirm"];
+  const currentIndex = stepOrder.indexOf(step === "done" ? "confirm" : step);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -113,28 +112,19 @@ export default function Home() {
 
       <main className="max-w-lg mx-auto px-4 py-6">
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[
-            { key: "date", label: "日付" },
-            { key: "time", label: "時間" },
-            { key: "patient", label: "情報入力" },
-            { key: "confirm", label: "確認" },
-          ].map((s, i) => {
-            const steps: Step[] = ["date", "time", "patient", "confirm"];
-            const currentIndex = steps.indexOf(
-              step === "done" ? "confirm" : step
-            );
+        <div className="flex items-center justify-center gap-1 mb-8">
+          {progressSteps.map((s, i) => {
             const isActive = i <= currentIndex;
             return (
-              <div key={s.key} className="flex items-center gap-2">
+              <div key={s.key} className="flex items-center gap-1">
                 {i > 0 && (
                   <div
-                    className={`w-6 h-0.5 ${isActive ? "bg-blue-500" : "bg-gray-200"}`}
+                    className={`w-4 h-0.5 ${isActive ? "bg-blue-500" : "bg-gray-200"}`}
                   />
                 )}
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                       isActive
                         ? "bg-blue-600 text-white"
                         : "bg-gray-200 text-gray-400"
@@ -143,7 +133,7 @@ export default function Home() {
                     {i + 1}
                   </div>
                   <span
-                    className={`text-xs mt-1 ${
+                    className={`text-[10px] mt-1 ${
                       isActive ? "text-blue-600" : "text-gray-400"
                     }`}
                   >
@@ -155,7 +145,7 @@ export default function Home() {
           })}
         </div>
 
-        {/* Date Selection */}
+        {/* Step 1: Date */}
         {step === "date" && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-bold text-gray-800 mb-4">
@@ -163,7 +153,11 @@ export default function Home() {
             </h2>
             <Calendar
               selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
+              onSelectDate={(date) => {
+                setSelectedDate(date);
+                setSelectedTime(null);
+                setStep("time");
+              }}
             />
             <p className="text-xs text-gray-400 mt-4 text-center">
               ※ 日曜日は休診日です
@@ -171,7 +165,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Time Selection */}
+        {/* Step 2: Time */}
         {step === "time" && selectedDate && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <button
@@ -189,68 +183,131 @@ export default function Home() {
             <TimeSlots
               selectedTime={selectedTime}
               bookedTimes={bookedTimes}
-              onSelectTime={handleSelectTime}
+              onSelectTime={(time) => {
+                setSelectedTime(time);
+                setStep("consultation");
+              }}
             />
           </div>
         )}
 
-        {/* Patient Info */}
-        {step === "patient" && (
-          <PatientForm
-            onSubmit={handlePatientSubmit}
+        {/* Step 3: Consultation Type */}
+        {step === "consultation" && (
+          <ConsultationType
+            selected={consultationType}
+            onSelect={(type) => {
+              setConsultationType(type);
+              setStep("pet");
+            }}
             onBack={() => setStep("time")}
           />
         )}
 
-        {/* Confirmation */}
+        {/* Step 4: Pet Info */}
+        {step === "pet" && (
+          <PetForm
+            onSubmit={(data) => {
+              setPetInfo(data);
+              setStep("patient");
+            }}
+            onBack={() => setStep("consultation")}
+          />
+        )}
+
+        {/* Step 5: Patient (Owner) Info */}
+        {step === "patient" && (
+          <PatientForm
+            onSubmit={(data) => {
+              setPatientInfo(data);
+              setStep("confirm");
+            }}
+            onBack={() => setStep("pet")}
+          />
+        )}
+
+        {/* Step 6: Confirmation */}
         {step === "confirm" &&
           selectedDate &&
           selectedTime &&
+          consultationType &&
+          petInfo &&
           patientInfo && (
             <div className="w-full max-w-md mx-auto bg-blue-50 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 予約内容の確認
               </h3>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">日付</span>
-                  <span className="font-medium text-gray-800">
-                    {formatDate(selectedDate)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">時間</span>
-                  <span className="font-medium text-gray-800">
-                    {selectedTime}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">お名前</span>
-                  <span className="font-medium text-gray-800">
-                    {patientInfo.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">電話番号</span>
-                  <span className="font-medium text-gray-800">
-                    {patientInfo.phone}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">メール</span>
-                  <span className="font-medium text-gray-800">
-                    {patientInfo.email}
-                  </span>
-                </div>
-                {patientInfo.symptoms && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">症状</span>
-                    <span className="font-medium text-gray-800">
-                      {patientInfo.symptoms}
-                    </span>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-2">予約情報</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">日付</span>
+                      <span className="font-medium text-gray-800">{formatDate(selectedDate)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">時間</span>
+                      <span className="font-medium text-gray-800">{selectedTime}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">診察内容</span>
+                      <span className="font-medium text-gray-800">{consultationType}</span>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                <hr className="border-gray-200" />
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-2">ペット情報</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">名前</span>
+                      <span className="font-medium text-gray-800">{petInfo.petName}（{petInfo.petNameKana}）</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">種類</span>
+                      <span className="font-medium text-gray-800">{petInfo.petSpecies}{petInfo.petBreed ? ` / ${petInfo.petBreed}` : ""}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">性別</span>
+                      <span className="font-medium text-gray-800">{petInfo.petSex}</span>
+                    </div>
+                    {petInfo.petBirthDate && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">生年月日</span>
+                        <span className="font-medium text-gray-800">{petInfo.petBirthDate}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="border-gray-200" />
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-2">飼い主情報</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">お名前</span>
+                      <span className="font-medium text-gray-800">{patientInfo.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">電話番号</span>
+                      <span className="font-medium text-gray-800">{patientInfo.phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">メール</span>
+                      <span className="font-medium text-gray-800">{patientInfo.email}</span>
+                    </div>
+                    {patientInfo.symptoms && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">症状</span>
+                        <span className="font-medium text-gray-800">{patientInfo.symptoms}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep("patient")}

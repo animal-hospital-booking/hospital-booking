@@ -119,8 +119,18 @@ export default function AdminPage() {
                       {formatDate(booking.date)}{" "}
                       <span className="text-blue-600">{booking.time}</span>
                     </p>
+                    {booking.consultationType && (
+                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium mt-1">
+                        {booking.consultationType}
+                      </span>
+                    )}
+                    {booking.pet && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        🐾 {booking.pet.petName}（{booking.pet.petSpecies}{booking.pet.petBreed ? ` / ${booking.pet.petBreed}` : ""}・{booking.pet.petSex}）
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600 mt-1">
-                      {booking.name} ・ {booking.phone} ・ {booking.email}
+                      飼い主: {booking.name} ・ {booking.phone}
                     </p>
                     {booking.symptoms && (
                       <p className="text-sm text-gray-400 mt-1">

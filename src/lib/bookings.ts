@@ -1,11 +1,22 @@
+export type PetInfo = {
+  petName: string;
+  petNameKana: string;
+  petSpecies: string;
+  petBreed: string;
+  petSex: string;
+  petBirthDate: string;
+};
+
 export type Booking = {
   id: string;
   date: string;
   time: string;
+  consultationType: string;
   name: string;
   phone: string;
   email: string;
   symptoms: string;
+  pet: PetInfo;
   status: "confirmed" | "cancelled" | "completed";
   createdAt: string;
 };
