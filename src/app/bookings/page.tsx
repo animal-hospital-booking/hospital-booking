@@ -94,6 +94,12 @@ export default function BookingsPage() {
                     <span className="text-gray-400">電話：</span>
                     {booking.phone}
                   </p>
+                  {booking.email && (
+                    <p>
+                      <span className="text-gray-400">メール：</span>
+                      {booking.email}
+                    </p>
+                  )}
                   {booking.symptoms && (
                     <p>
                       <span className="text-gray-400">症状：</span>

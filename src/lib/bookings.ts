@@ -4,6 +4,7 @@ export type Booking = {
   time: string;
   name: string;
   phone: string;
+  email: string;
   symptoms: string;
   status: "confirmed" | "cancelled" | "completed";
   createdAt: string;

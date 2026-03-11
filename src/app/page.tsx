@@ -5,8 +5,8 @@ import Link from "next/link";
 import Calendar from "@/components/Calendar";
 import TimeSlots from "@/components/TimeSlots";
 import PatientForm from "@/components/PatientForm";
-import BookingConfirmation from "@/components/BookingConfirmation";
-import { addBooking } from "@/lib/bookings";
+import { addBooking, getBookedTimes } from "@/lib/bookings";
+import { sendConfirmationEmail } from "@/lib/email";
 
 type Step = "date" | "time" | "patient" | "confirm" | "done";
 
@@ -17,8 +17,19 @@ export default function Home() {
   const [patientInfo, setPatientInfo] = useState<{
     name: string;
     phone: string;
+    email: string;
     symptoms: string;
   } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const formatDateStr = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const formatDate = (d: Date) => {
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${weekdays[d.getDay()]})`;
+  };
 
   const handleSelectDate = (date: Date) => {
     setSelectedDate(date);
@@ -34,23 +45,38 @@ export default function Home() {
   const handlePatientSubmit = (data: {
     name: string;
     phone: string;
+    email: string;
     symptoms: string;
   }) => {
     setPatientInfo(data);
     setStep("confirm");
   };
 
-  const handleConfirm = () => {
-    if (selectedDate && selectedTime && patientInfo) {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
-      addBooking({
-        date: dateStr,
-        time: selectedTime,
-        name: patientInfo.name,
-        phone: patientInfo.phone,
-        symptoms: patientInfo.symptoms,
-      });
-    }
+  const handleConfirm = async () => {
+    if (!selectedDate || !selectedTime || !patientInfo) return;
+
+    setSending(true);
+    const dateStr = formatDateStr(selectedDate);
+
+    addBooking({
+      date: dateStr,
+      time: selectedTime,
+      name: patientInfo.name,
+      phone: patientInfo.phone,
+      email: patientInfo.email,
+      symptoms: patientInfo.symptoms,
+    });
+
+    const sent = await sendConfirmationEmail({
+      to_email: patientInfo.email,
+      patient_name: patientInfo.name,
+      booking_date: formatDate(selectedDate),
+      booking_time: selectedTime,
+      symptoms: patientInfo.symptoms || "なし",
+    });
+
+    setEmailSent(sent);
+    setSending(false);
     setStep("done");
   };
 
@@ -58,13 +84,13 @@ export default function Home() {
     setSelectedDate(null);
     setSelectedTime(null);
     setPatientInfo(null);
+    setEmailSent(false);
     setStep("date");
   };
 
-  const formatDate = (d: Date) => {
-    const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${weekdays[d.getDay()]})`;
-  };
+  const bookedTimes = selectedDate
+    ? getBookedTimes(formatDateStr(selectedDate))
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,6 +188,7 @@ export default function Home() {
             </p>
             <TimeSlots
               selectedTime={selectedTime}
+              bookedTimes={bookedTimes}
               onSelectTime={handleSelectTime}
             />
           </div>
@@ -209,6 +236,12 @@ export default function Home() {
                     {patientInfo.phone}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">メール</span>
+                  <span className="font-medium text-gray-800">
+                    {patientInfo.email}
+                  </span>
+                </div>
                 {patientInfo.symptoms && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">症状</span>
@@ -221,15 +254,17 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep("patient")}
-                  className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition font-medium"
+                  disabled={sending}
+                  className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition font-medium disabled:opacity-50"
                 >
                   戻る
                 </button>
                 <button
                   onClick={handleConfirm}
-                  className="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+                  disabled={sending}
+                  className="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium disabled:opacity-50"
                 >
-                  予約を確定する
+                  {sending ? "送信中..." : "予約を確定する"}
                 </button>
               </div>
             </div>
@@ -245,9 +280,15 @@ export default function Home() {
             <p className="text-gray-500 mb-2">
               {formatDate(selectedDate)} {selectedTime}
             </p>
-            <p className="text-sm text-gray-400 mb-6">
-              ご来院をお待ちしております
-            </p>
+            {emailSent ? (
+              <p className="text-sm text-green-600 mb-6">
+                確認メールを {patientInfo?.email} に送信しました
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 mb-6">
+                ご来院をお待ちしております
+              </p>
+            )}
             <div className="flex gap-3 justify-center">
               <Link
                 href="/bookings"

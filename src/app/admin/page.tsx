@@ -120,7 +120,7 @@ export default function AdminPage() {
                       <span className="text-blue-600">{booking.time}</span>
                     </p>
                     <p className="text-sm text-gray-600 mt-1">
-                      {booking.name} ・ {booking.phone}
+                      {booking.name} ・ {booking.phone} ・ {booking.email}
                     </p>
                     {booking.symptoms && (
                       <p className="text-sm text-gray-400 mt-1">
