@@ -9,6 +9,17 @@ import {
   type Booking,
   type PetInfo,
 } from "@/lib/bookings";
+import {
+  isConfigured as isGCalConfigured,
+  loadGoogleScripts,
+  initTokenClient,
+  requestAuth,
+  isAuthenticated,
+  signOut,
+  addToCalendar,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from "@/lib/googleCalendar";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -371,6 +382,9 @@ export default function AdminPage() {
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [gcalReady, setGcalReady] = useState(false);
+  const [gcalConnected, setGcalConnected] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const reload = useCallback(() => {
     const fresh = getBookings();
@@ -379,6 +393,89 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Google Calendar init
+  useEffect(() => {
+    if (!isGCalConfigured()) return;
+    loadGoogleScripts().then(() => {
+      setGcalReady(true);
+      initTokenClient(() => {
+        setGcalConnected(true);
+      });
+    });
+  }, []);
+
+  const handleGCalConnect = () => {
+    if (gcalConnected) {
+      signOut();
+      setGcalConnected(false);
+    } else {
+      requestAuth();
+    }
+  };
+
+  // Sync all confirmed bookings to Google Calendar
+  const syncAllToGCal = async () => {
+    if (!gcalConnected) return;
+    setSyncing(true);
+    const current = getBookings();
+    for (const booking of current) {
+      if (booking.status === "cancelled") {
+        if (booking.googleEventId) {
+          await deleteCalendarEvent(booking.googleEventId);
+          updateBooking(booking.id, { googleEventId: undefined });
+        }
+        continue;
+      }
+      const eventData = {
+        id: booking.id,
+        date: booking.date,
+        time: booking.time,
+        consultationType: booking.consultationType || "",
+        name: booking.name,
+        petName: booking.pet?.petName || "",
+        petSpecies: booking.pet?.petSpecies || "",
+        symptoms: booking.symptoms || "",
+      };
+      if (booking.googleEventId) {
+        await updateCalendarEvent(booking.googleEventId, eventData);
+      } else {
+        const eventId = await addToCalendar(eventData);
+        if (eventId) {
+          updateBooking(booking.id, { googleEventId: eventId });
+        }
+      }
+    }
+    reload();
+    setSyncing(false);
+  };
+
+  // Sync single booking
+  const syncBookingToGCal = async (booking: Booking) => {
+    if (!gcalConnected) return;
+    const eventData = {
+      id: booking.id,
+      date: booking.date,
+      time: booking.time,
+      consultationType: booking.consultationType || "",
+      name: booking.name,
+      petName: booking.pet?.petName || "",
+      petSpecies: booking.pet?.petSpecies || "",
+      symptoms: booking.symptoms || "",
+    };
+    if (booking.status === "cancelled" && booking.googleEventId) {
+      await deleteCalendarEvent(booking.googleEventId);
+      updateBooking(booking.id, { googleEventId: undefined });
+    } else if (booking.googleEventId) {
+      await updateCalendarEvent(booking.googleEventId, eventData);
+    } else {
+      const eventId = await addToCalendar(eventData);
+      if (eventId) {
+        updateBooking(booking.id, { googleEventId: eventId });
+      }
+    }
+    reload();
+  };
 
   const today = new Date();
 
@@ -428,15 +525,23 @@ export default function AdminPage() {
     return { top, height };
   };
 
-  const handleStatusChange = (id: string, status: Booking["status"]) => {
+  const handleStatusChange = async (id: string, status: Booking["status"]) => {
     updateBookingStatus(id, status);
     const fresh = reload();
-    setSelectedBooking(fresh.find((b) => b.id === id) || null);
+    const updated = fresh.find((b) => b.id === id);
+    setSelectedBooking(updated || null);
+    if (updated && gcalConnected) {
+      await syncBookingToGCal(updated);
+    }
   };
 
-  const handleSave = (id: string, updates: Partial<Booking>) => {
+  const handleSave = async (id: string, updates: Partial<Booking>) => {
     updateBooking(id, updates);
-    reload();
+    const fresh = reload();
+    const updated = fresh.find((b) => b.id === id);
+    if (updated && gcalConnected) {
+      await syncBookingToGCal(updated);
+    }
   };
 
   // Stats
@@ -462,7 +567,32 @@ export default function AdminPage() {
             <h1 className="text-xl font-bold text-gray-800">管理者画面</h1>
             <p className="text-sm text-gray-500 mt-1">予約カレンダー</p>
           </div>
-          <Link href="/" className="text-sm text-blue-600 hover:text-blue-800">予約ページ →</Link>
+          <div className="flex items-center gap-3">
+            {gcalReady && (
+              <>
+                <button
+                  onClick={handleGCalConnect}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition font-medium ${
+                    gcalConnected
+                      ? "border-green-300 bg-green-50 text-green-700"
+                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {gcalConnected ? "Google Calendar 連携中" : "Google Calendar 連携"}
+                </button>
+                {gcalConnected && (
+                  <button
+                    onClick={syncAllToGCal}
+                    disabled={syncing}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                  >
+                    {syncing ? "同期中..." : "全件同期"}
+                  </button>
+                )}
+              </>
+            )}
+            <Link href="/" className="text-sm text-blue-600 hover:text-blue-800">予約ページ →</Link>
+          </div>
         </div>
       </header>
 

@@ -18,6 +18,7 @@ export type Booking = {
   symptoms: string;
   pet: PetInfo;
   status: "confirmed" | "cancelled" | "completed";
+  googleEventId?: string;
   createdAt: string;
 };
 
