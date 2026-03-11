@@ -31,25 +31,23 @@ export async function POST(request: NextRequest) {
   const events = body.events || [];
 
   for (const event of events) {
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+    const bookingUrl = liffId
+      ? `https://liff.line.me/${liffId}`
+      : "https://hospital-booking-jos-projects-1ea00eb6.vercel.app";
+
     if (event.type === "follow") {
       await sendLineMessage(
         event.source.userId,
-        "こんにちは！動物病院予約システムです。\nこのトーク画面の下部メニューから予約できます。"
+        `こんにちは！動物病院予約システムです。\n\nこちらから診察のご予約ができます：\n${bookingUrl}\n\nお気軽にご予約ください。`
       );
     }
 
     if (event.type === "message" && event.message.type === "text") {
-      const text = event.message.text;
-      if (text.includes("予約")) {
-        const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-        const url = liffId
-          ? `https://liff.line.me/${liffId}`
-          : "予約ページのURLが設定されていません";
-        await sendLineMessage(
-          event.source.userId,
-          `こちらから予約できます：\n${url}`
-        );
-      }
+      await sendLineMessage(
+        event.source.userId,
+        `こちらから予約できます：\n${bookingUrl}`
+      );
     }
   }
 
