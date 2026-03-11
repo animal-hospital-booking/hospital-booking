@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 
 function toKatakana(str: string): string {
   return str.replace(/[\u3041-\u3096]/g, (ch) =>
@@ -29,45 +29,16 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
   const [petName, setPetName] = useState("");
   const [petNameKana, setPetNameKana] = useState("");
   const [kanaEdited, setKanaEdited] = useState(false);
-  const composingRef = useRef("");
-
-  const handleNameComposition = useCallback(
-    (e: React.CompositionEvent<HTMLInputElement>) => {
-      if (e.type === "compositionupdate") {
-        composingRef.current = e.data;
-      }
-      if (e.type === "compositionend") {
-        if (!kanaEdited) {
-          // Use composition data (the reading from IME) to set kana
-          const reading = composingRef.current || e.data;
-          setPetNameKana((prev) => {
-            const newKana = prev + toKatakana(reading);
-            return newKana;
-          });
-        }
-        composingRef.current = "";
-      }
-    },
-    [kanaEdited]
-  );
+  const isComposingRef = useRef(false);
+  const kanaBeforeComposeRef = useRef("");
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    const oldValue = petName;
     setPetName(newValue);
 
-    // If text was deleted, trim kana proportionally
-    if (!kanaEdited && newValue.length < oldValue.length) {
-      const diff = oldValue.length - newValue.length;
-      setPetNameKana((prev) => prev.slice(0, Math.max(0, prev.length - diff)));
-    }
-
-    // If input is already katakana/hiragana (direct input without IME), sync to kana
-    if (!kanaEdited && newValue.length > oldValue.length) {
-      const added = newValue.slice(oldValue.length);
-      if (/^[\u3041-\u30FF]+$/.test(added)) {
-        setPetNameKana((prev) => prev + toKatakana(added));
-      }
+    // Clear kana when name is cleared
+    if (!kanaEdited && newValue === "") {
+      setPetNameKana("");
     }
   };
   const [petSpecies, setPetSpecies] = useState("");
@@ -119,8 +90,17 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
             type="text"
             value={petName}
             onChange={handleNameChange}
-            onCompositionUpdate={handleNameComposition}
-            onCompositionEnd={handleNameComposition}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+              kanaBeforeComposeRef.current = petNameKana;
+            }}
+            onCompositionEnd={(e) => {
+              isComposingRef.current = false;
+              if (!kanaEdited) {
+                const reading = e.data;
+                setPetNameKana(kanaBeforeComposeRef.current + toKatakana(reading));
+              }
+            }}
             placeholder="ポチ"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
           />
