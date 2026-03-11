@@ -147,7 +147,7 @@ export default function Home() {
               setConsultationType(type);
               setStep("schedule");
             }}
-            onBack={() => {}}
+
           />
         )}
 
