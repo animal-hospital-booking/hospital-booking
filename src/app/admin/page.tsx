@@ -440,9 +440,10 @@ export default function AdminPage() {
   };
 
   // Stats
+  const todayStr = formatDateStr(today);
+  const todayBookings = bookings.filter((b) => b.date === todayStr && b.status !== "cancelled");
   const counts = {
-    all: bookings.length,
-    confirmed: bookings.filter((b) => b.status === "confirmed").length,
+    today: todayBookings.length,
     completed: bookings.filter((b) => b.status === "completed").length,
     cancelled: bookings.filter((b) => b.status === "cancelled").length,
   };
@@ -467,10 +468,9 @@ export default function AdminPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {([
-            { key: "all", label: "全件", color: "bg-white" },
-            { key: "confirmed", label: "予約確定", color: "bg-green-50" },
+            { key: "today", label: "本日の診察", color: "bg-white" },
             { key: "completed", label: "診察済", color: "bg-blue-50" },
             { key: "cancelled", label: "キャンセル", color: "bg-gray-50" },
           ] as const).map((s) => (
