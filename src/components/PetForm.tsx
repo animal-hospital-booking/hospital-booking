@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+
+function toKatakana(str: string): string {
+  return str.replace(/[\u3041-\u3096]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) + 0x60)
+  );
+}
 
 export type PetInfo = {
   petName: string;
@@ -22,6 +28,48 @@ const PET_SEX = ["オス", "メス", "不明"];
 export default function PetForm({ onSubmit, onBack }: PetFormProps) {
   const [petName, setPetName] = useState("");
   const [petNameKana, setPetNameKana] = useState("");
+  const [kanaEdited, setKanaEdited] = useState(false);
+  const composingRef = useRef("");
+
+  const handleNameComposition = useCallback(
+    (e: React.CompositionEvent<HTMLInputElement>) => {
+      if (e.type === "compositionupdate") {
+        composingRef.current = e.data;
+      }
+      if (e.type === "compositionend") {
+        if (!kanaEdited) {
+          // Use composition data (the reading from IME) to set kana
+          const reading = composingRef.current || e.data;
+          setPetNameKana((prev) => {
+            const newKana = prev + toKatakana(reading);
+            return newKana;
+          });
+        }
+        composingRef.current = "";
+      }
+    },
+    [kanaEdited]
+  );
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    const oldValue = petName;
+    setPetName(newValue);
+
+    // If text was deleted, trim kana proportionally
+    if (!kanaEdited && newValue.length < oldValue.length) {
+      const diff = oldValue.length - newValue.length;
+      setPetNameKana((prev) => prev.slice(0, Math.max(0, prev.length - diff)));
+    }
+
+    // If input is already katakana/hiragana (direct input without IME), sync to kana
+    if (!kanaEdited && newValue.length > oldValue.length) {
+      const added = newValue.slice(oldValue.length);
+      if (/^[\u3041-\u30FF]+$/.test(added)) {
+        setPetNameKana((prev) => prev + toKatakana(added));
+      }
+    }
+  };
   const [petSpecies, setPetSpecies] = useState("");
   const [petBreed, setPetBreed] = useState("");
   const [petSex, setPetSex] = useState("");
@@ -70,7 +118,9 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
           <input
             type="text"
             value={petName}
-            onChange={(e) => setPetName(e.target.value)}
+            onChange={handleNameChange}
+            onCompositionUpdate={handleNameComposition}
+            onCompositionEnd={handleNameComposition}
             placeholder="ポチ"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
           />
@@ -86,7 +136,10 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
           <input
             type="text"
             value={petNameKana}
-            onChange={(e) => setPetNameKana(e.target.value)}
+            onChange={(e) => {
+              setPetNameKana(e.target.value);
+              setKanaEdited(true);
+            }}
             placeholder="ポチ"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
           />
