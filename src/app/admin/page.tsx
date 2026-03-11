@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
-  getBookings,
-  updateBookingStatus,
-  updateBooking,
+  fetchBookings,
+  updateBookingStatus as apiUpdateStatus,
+  updateBooking as apiUpdateBooking,
   type Booking,
-  type PetInfo,
-} from "@/lib/bookings";
+} from "@/lib/api/bookings";
+import type { PetInfo } from "@/lib/bookings";
 import {
   isConfigured as isGCalConfigured,
   loadGoogleScripts,
@@ -396,8 +396,8 @@ export default function AdminPage() {
   const [gcalConnected, setGcalConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  const reload = useCallback(() => {
-    const fresh = getBookings();
+  const reload = useCallback(async () => {
+    const fresh = await fetchBookings();
     setBookings(fresh);
     return fresh;
   }, []);
@@ -428,12 +428,12 @@ export default function AdminPage() {
   const syncAllToGCal = async () => {
     if (!gcalConnected) return;
     setSyncing(true);
-    const current = getBookings();
+    const current = await fetchBookings();
     for (const booking of current) {
       if (booking.status === "cancelled") {
         if (booking.googleEventId) {
           await deleteCalendarEvent(booking.googleEventId);
-          updateBooking(booking.id, { googleEventId: undefined });
+          await apiUpdateBooking(booking.id, { googleEventId: undefined });
         }
         continue;
       }
@@ -452,11 +452,11 @@ export default function AdminPage() {
       } else {
         const eventId = await addToCalendar(eventData);
         if (eventId) {
-          updateBooking(booking.id, { googleEventId: eventId });
+          await apiUpdateBooking(booking.id, { googleEventId: eventId });
         }
       }
     }
-    reload();
+    await reload();
     setSyncing(false);
   };
 
@@ -475,16 +475,16 @@ export default function AdminPage() {
     };
     if (booking.status === "cancelled" && booking.googleEventId) {
       await deleteCalendarEvent(booking.googleEventId);
-      updateBooking(booking.id, { googleEventId: undefined });
+      await apiUpdateBooking(booking.id, { googleEventId: undefined });
     } else if (booking.googleEventId) {
       await updateCalendarEvent(booking.googleEventId, eventData);
     } else {
       const eventId = await addToCalendar(eventData);
       if (eventId) {
-        updateBooking(booking.id, { googleEventId: eventId });
+        await apiUpdateBooking(booking.id, { googleEventId: eventId });
       }
     }
-    reload();
+    await reload();
   };
 
   const today = new Date();
@@ -545,9 +545,9 @@ export default function AdminPage() {
   };
 
   const handleStatusChange = async (id: string, status: Booking["status"]) => {
-    updateBookingStatus(id, status);
-    const fresh = reload();
-    const updated = fresh.find((b) => b.id === id);
+    await apiUpdateStatus(id, status);
+    const fresh = await reload();
+    const updated = fresh.find((b: Booking) => b.id === id);
     setSelectedBooking(updated || null);
     if (updated && gcalConnected) {
       await syncBookingToGCal(updated);
@@ -555,9 +555,9 @@ export default function AdminPage() {
   };
 
   const handleSave = async (id: string, updates: Partial<Booking>) => {
-    updateBooking(id, updates);
-    const fresh = reload();
-    const updated = fresh.find((b) => b.id === id);
+    await apiUpdateBooking(id, updates);
+    const fresh = await reload();
+    const updated = fresh.find((b: Booking) => b.id === id);
     if (updated && gcalConnected) {
       await syncBookingToGCal(updated);
     }

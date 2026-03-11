@@ -6,8 +6,9 @@ import ConsultationType from "@/components/ConsultationType";
 import WeeklySchedule from "@/components/WeeklySchedule";
 import PetForm, { type PetInfo } from "@/components/PetForm";
 import PatientForm from "@/components/PatientForm";
-import { addBooking } from "@/lib/bookings";
+import { createBooking } from "@/lib/api/bookings";
 import { sendConfirmationEmail } from "@/lib/email";
+import { useLiff } from "@/components/LiffProvider";
 
 type Step = "consultation" | "schedule" | "pet" | "patient" | "confirm" | "done";
 
@@ -25,6 +26,7 @@ export default function Home() {
   } | null>(null);
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const { lineUserId } = useLiff();
 
   const formatDateStr = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -40,7 +42,7 @@ export default function Home() {
     setSending(true);
     const dateStr = formatDateStr(selectedDate);
 
-    addBooking({
+    await createBooking({
       date: dateStr,
       time: selectedTime,
       consultationType,
@@ -49,6 +51,7 @@ export default function Home() {
       email: patientInfo.email,
       symptoms: patientInfo.symptoms,
       pet: petInfo,
+      lineUserId: lineUserId || undefined,
     });
 
     const sent = await sendConfirmationEmail({

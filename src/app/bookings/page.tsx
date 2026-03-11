@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  getBookings,
-  updateBookingStatus,
-  updateBooking,
+  fetchBookings,
+  updateBookingStatus as apiUpdateStatus,
+  updateBooking as apiUpdateBooking,
   type Booking,
-  type PetInfo,
-} from "@/lib/bookings";
+} from "@/lib/api/bookings";
+import type { PetInfo } from "@/lib/bookings";
+import { useLiff } from "@/components/LiffProvider";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const CONSULTATION_TYPES = ["初診", "再診", "狂犬病", "相談"];
@@ -210,25 +211,27 @@ function EditModal({
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const { lineUserId } = useLiff();
 
-  const reload = () => {
-    setBookings(getBookings().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  const reload = async () => {
+    const data = await fetchBookings(lineUserId || undefined);
+    setBookings(data.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   };
 
   useEffect(() => {
     reload();
-  }, []);
+  }, [lineUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCancel = (id: string) => {
+  const handleCancel = async (id: string) => {
     if (confirm("この予約をキャンセルしますか？")) {
-      updateBookingStatus(id, "cancelled");
-      reload();
+      await apiUpdateStatus(id, "cancelled");
+      await reload();
     }
   };
 
-  const handleSave = (id: string, updates: Partial<Booking>) => {
-    updateBooking(id, updates);
-    reload();
+  const handleSave = async (id: string, updates: Partial<Booking>) => {
+    await apiUpdateBooking(id, updates);
+    await reload();
   };
 
   return (
