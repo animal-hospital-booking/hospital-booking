@@ -61,7 +61,7 @@ export default function Calendar({ selectedDate, onSelectDate }: CalendarProps) 
     new Date(today.getFullYear(), today.getMonth(), 1);
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={prevMonth}

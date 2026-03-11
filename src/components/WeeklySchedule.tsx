@@ -86,7 +86,7 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-white rounded-xl shadow-sm p-4">
+    <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-4">
       <button
         onClick={onBack}
         className="text-blue-600 hover:text-blue-800 text-sm mb-3"

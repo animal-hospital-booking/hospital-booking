@@ -42,7 +42,7 @@ function SlotButton({
 
 export default function TimeSlots({ selectedTime, bookedTimes, onSelectTime }: TimeSlotsProps) {
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-3xl mx-auto">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-gray-500 mb-2">午前</h3>
         <div className="grid grid-cols-3 gap-2">

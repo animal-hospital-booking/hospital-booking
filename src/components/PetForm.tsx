@@ -54,7 +54,7 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white rounded-xl shadow-sm p-6">
+    <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-6">
       <button
         onClick={onBack}
         className="text-blue-600 hover:text-blue-800 text-sm mb-4"

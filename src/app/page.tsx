@@ -88,7 +88,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-blue-700">クリニック予約</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -104,7 +104,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-3xl mx-auto px-4 py-6">
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-1 mb-8">
           {progressSteps.map((s, i) => {
@@ -192,7 +192,7 @@ export default function Home() {
           consultationType &&
           petInfo &&
           patientInfo && (
-            <div className="w-full max-w-md mx-auto bg-blue-50 rounded-xl p-6">
+            <div className="w-full max-w-3xl mx-auto bg-blue-50 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 予約内容の確認
               </h3>
