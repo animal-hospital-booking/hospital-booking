@@ -14,8 +14,27 @@
 import readline from "readline";
 import { execSync } from "child_process";
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((r) => rl.question(q, r));
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+const lineBuffer = [];
+let lineResolve = null;
+rl.on("line", (line) => {
+  if (lineResolve) {
+    const resolve = lineResolve;
+    lineResolve = null;
+    resolve(line);
+  } else {
+    lineBuffer.push(line);
+  }
+});
+function ask(q) {
+  process.stdout.write(q);
+  if (lineBuffer.length > 0) {
+    const line = lineBuffer.shift();
+    process.stdout.write(line + "\n");
+    return Promise.resolve(line);
+  }
+  return new Promise((resolve) => { lineResolve = resolve; });
+}
 
 async function fetchJSON(url, options = {}) {
   const res = await fetch(url, options);
