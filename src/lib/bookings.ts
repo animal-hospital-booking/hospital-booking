@@ -56,6 +56,18 @@ export function updateBookingStatus(
   }
 }
 
+export function updateBooking(
+  id: string,
+  updates: Partial<Omit<Booking, "id" | "createdAt">>
+): void {
+  const bookings = getBookings();
+  const index = bookings.findIndex((b) => b.id === id);
+  if (index !== -1) {
+    bookings[index] = { ...bookings[index], ...updates };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+  }
+}
+
 export function getBookedTimes(dateStr: string): string[] {
   const bookings = getBookings();
   return bookings

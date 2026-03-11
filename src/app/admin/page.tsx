@@ -2,12 +2,22 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getBookings, updateBookingStatus, type Booking } from "@/lib/bookings";
+import {
+  getBookings,
+  updateBookingStatus,
+  updateBooking,
+  type Booking,
+  type PetInfo,
+} from "@/lib/bookings";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+const HOUR_HEIGHT = 80;
+const CONSULTATION_TYPES = ["初診", "再診", "狂犬病", "相談"];
+const PET_SPECIES = ["犬", "猫", "うさぎ", "ハムスター", "鳥", "その他"];
+const PET_SEX_OPTIONS = ["オス", "メス", "不明"];
 
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
-const HOUR_HEIGHT = 80; // px per hour
+type ViewMode = "week" | "month";
 
 const statusColors: Record<Booking["status"], string> = {
   confirmed: "bg-green-200 border-green-400 text-green-900",
@@ -25,7 +35,7 @@ function getWeekStart(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   const day = d.getDay();
-  d.setDate(d.getDate() - day + 1); // Monday start
+  d.setDate(d.getDate() - day + 1);
   return d;
 }
 
@@ -48,40 +58,361 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
-function isToday(d: Date): boolean {
-  const today = new Date();
+function isSameDay(a: Date, b: Date): boolean {
   return (
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate()
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
   );
 }
 
+function getMonthDays(year: number, month: number): (Date | null)[][] {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks: (Date | null)[][] = [];
+  let week: (Date | null)[] = [];
+
+  // Monday start: adjust firstDay (0=Sun -> 6, 1=Mon -> 0, etc.)
+  const startOffset = (firstDay + 6) % 7;
+  for (let i = 0; i < startOffset; i++) week.push(null);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    week.push(new Date(year, month, day));
+    if (week.length === 7) {
+      weeks.push(week);
+      week = [];
+    }
+  }
+  if (week.length > 0) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+// ─── Edit Modal ───
+function EditModal({
+  booking,
+  onSave,
+  onClose,
+  onStatusChange,
+}: {
+  booking: Booking;
+  onSave: (id: string, updates: Partial<Booking>) => void;
+  onClose: () => void;
+  onStatusChange: (id: string, status: Booking["status"]) => void;
+}) {
+  const [tab, setTab] = useState<"detail" | "edit">("detail");
+  const [consultationType, setConsultationType] = useState(booking.consultationType || "");
+  const [date, setDate] = useState(booking.date);
+  const [time, setTime] = useState(booking.time);
+  const [name, setName] = useState(booking.name);
+  const [phone, setPhone] = useState(booking.phone);
+  const [email, setEmail] = useState(booking.email || "");
+  const [symptoms, setSymptoms] = useState(booking.symptoms || "");
+  const [petName, setPetName] = useState(booking.pet?.petName || "");
+  const [petNameKana, setPetNameKana] = useState(booking.pet?.petNameKana || "");
+  const [petSpecies, setPetSpecies] = useState(booking.pet?.petSpecies || "");
+  const [petBreed, setPetBreed] = useState(booking.pet?.petBreed || "");
+  const [petSex, setPetSex] = useState(booking.pet?.petSex || "");
+  const [petBirthDate, setPetBirthDate] = useState(booking.pet?.petBirthDate || "");
+
+  const handleSave = () => {
+    const pet: PetInfo = { petName, petNameKana, petSpecies, petBreed, petSex, petBirthDate };
+    onSave(booking.id, {
+      consultationType,
+      date,
+      time,
+      name,
+      phone,
+      email,
+      symptoms,
+      pet,
+    });
+    onClose();
+  };
+
+  const formatDisplayDate = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-xl">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setTab("detail")}
+              className={`px-3 py-1 text-sm rounded-lg font-medium transition ${
+                tab === "detail" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              詳細
+            </button>
+            <button
+              onClick={() => setTab("edit")}
+              className={`px-3 py-1 text-sm rounded-lg font-medium transition ${
+                tab === "edit" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              編集
+            </button>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">
+            ✕
+          </button>
+        </div>
+
+        <div className="p-5">
+          {tab === "detail" ? (
+            /* ─── Detail Tab ─── */
+            <>
+              <div className="space-y-3 mb-5">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[booking.status]}`}>
+                    {statusLabels[booking.status]}
+                  </span>
+                  {booking.consultationType && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                      {booking.consultationType}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">日時</p>
+                  <p className="font-medium text-gray-800">
+                    {formatDisplayDate(booking.date)} {booking.time}〜
+                  </p>
+                </div>
+                {booking.pet && (
+                  <div>
+                    <p className="text-xs text-gray-400">ペット情報</p>
+                    <p className="font-medium text-gray-800">
+                      {booking.pet.petName}（{booking.pet.petNameKana}）
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {booking.pet.petSpecies}
+                      {booking.pet.petBreed ? ` / ${booking.pet.petBreed}` : ""}・
+                      {booking.pet.petSex}
+                      {booking.pet.petBirthDate ? ` ・ ${booking.pet.petBirthDate}` : ""}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-gray-400">飼い主</p>
+                  <p className="font-medium text-gray-800">{booking.name}</p>
+                  <p className="text-sm text-gray-600">{booking.phone}</p>
+                  {booking.email && <p className="text-sm text-gray-600">{booking.email}</p>}
+                </div>
+                {booking.symptoms && (
+                  <div>
+                    <p className="text-xs text-gray-400">症状</p>
+                    <p className="text-sm text-gray-800">{booking.symptoms}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-gray-100">
+                {booking.status !== "confirmed" && (
+                  <button onClick={() => onStatusChange(booking.id, "confirmed")}
+                    className="text-xs px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition font-medium">
+                    予約確定に戻す
+                  </button>
+                )}
+                {booking.status !== "completed" && (
+                  <button onClick={() => onStatusChange(booking.id, "completed")}
+                    className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-medium">
+                    診察済にする
+                  </button>
+                )}
+                {booking.status !== "cancelled" && (
+                  <button onClick={() => onStatusChange(booking.id, "cancelled")}
+                    className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition font-medium">
+                    キャンセル
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            /* ─── Edit Tab ─── */
+            <div className="space-y-4">
+              {/* Booking Info */}
+              <p className="text-xs font-semibold text-gray-400">予約情報</p>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">診察内容</label>
+                <div className="grid grid-cols-4 gap-1">
+                  {CONSULTATION_TYPES.map((t) => (
+                    <button key={t} type="button" onClick={() => setConsultationType(t)}
+                      className={`py-1 text-xs rounded-lg border transition ${
+                        consultationType === t ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
+                      }`}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">日付</label>
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">時間</label>
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Pet Info */}
+              <p className="text-xs font-semibold text-gray-400">ペット情報</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">名前</label>
+                  <input type="text" value={petName} onChange={(e) => setPetName(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">フリガナ</label>
+                  <input type="text" value={petNameKana} onChange={(e) => setPetNameKana(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">ペットの種類</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {PET_SPECIES.map((s) => (
+                    <button key={s} type="button" onClick={() => setPetSpecies(s)}
+                      className={`py-1 text-xs rounded-lg border transition ${
+                        petSpecies === s ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
+                      }`}>{s}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">品種</label>
+                  <input type="text" value={petBreed} onChange={(e) => setPetBreed(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">性別</label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {PET_SEX_OPTIONS.map((s) => (
+                      <button key={s} type="button" onClick={() => setPetSex(s)}
+                        className={`py-1 text-xs rounded-lg border transition ${
+                          petSex === s ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
+                        }`}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">生年月日</label>
+                <input type="date" value={petBirthDate} onChange={(e) => setPetBirthDate(e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Owner Info */}
+              <p className="text-xs font-semibold text-gray-400">飼い主情報</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">お名前</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">電話番号</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">メール</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">症状</label>
+                <textarea value={symptoms} onChange={(e) => setSymptoms(e.target.value)} rows={2}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              </div>
+
+              <button
+                onClick={handleSave}
+                className="w-full py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+              >
+                保存する
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Admin Page ───
 export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [viewMonth, setViewMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
 
   const reload = useCallback(() => {
-    setBookings(getBookings());
+    const fresh = getBookings();
+    setBookings(fresh);
+    return fresh;
   }, []);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useEffect(() => { reload(); }, [reload]);
 
+  const today = new Date();
+
+  // ─── Week helpers ───
   const days = getWeekDays(weekStart);
-
   const goThisWeek = () => setWeekStart(getWeekStart(new Date()));
-  const goPrev = () => {
+  const goPrevWeek = () => {
     const prev = new Date(weekStart);
     prev.setDate(prev.getDate() - 7);
     setWeekStart(prev);
   };
-  const goNext = () => {
+  const goNextWeek = () => {
     const next = new Date(weekStart);
     next.setDate(next.getDate() + 7);
     setWeekStart(next);
+  };
+
+  // ─── Month helpers ───
+  const monthWeeks = getMonthDays(viewMonth.year, viewMonth.month);
+  const goThisMonth = () => {
+    const now = new Date();
+    setViewMonth({ year: now.getFullYear(), month: now.getMonth() });
+  };
+  const goPrevMonth = () => {
+    setViewMonth((prev) => {
+      if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+      return { ...prev, month: prev.month - 1 };
+    });
+  };
+  const goNextMonth = () => {
+    setViewMonth((prev) => {
+      if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+      return { ...prev, month: prev.month + 1 };
+    });
   };
 
   const getBookingsForDay = (date: Date) => {
@@ -93,20 +424,20 @@ export default function AdminPage() {
     const startMin = timeToMinutes(booking.time);
     const topMin = startMin - HOURS[0] * 60;
     const top = (topMin / 60) * HOUR_HEIGHT;
-    const height = (30 / 60) * HOUR_HEIGHT; // 30min per booking
+    const height = (60 / 60) * HOUR_HEIGHT; // 1 hour per booking
     return { top, height };
   };
 
   const handleStatusChange = (id: string, status: Booking["status"]) => {
     updateBookingStatus(id, status);
-    reload();
-    setSelectedBooking(null);
+    const fresh = reload();
+    setSelectedBooking(fresh.find((b) => b.id === id) || null);
   };
 
-  // Week label
-  const weekEndDate = new Date(weekStart);
-  weekEndDate.setDate(weekEndDate.getDate() + 6);
-  const weekLabel = `${weekStart.getFullYear()}年${weekStart.getMonth() + 1}月${weekStart.getDate()}日 〜 ${weekEndDate.getMonth() + 1}月${weekEndDate.getDate()}日`;
+  const handleSave = (id: string, updates: Partial<Booking>) => {
+    updateBooking(id, updates);
+    reload();
+  };
 
   // Stats
   const counts = {
@@ -116,6 +447,12 @@ export default function AdminPage() {
     cancelled: bookings.filter((b) => b.status === "cancelled").length,
   };
 
+  // Week label
+  const weekEndDate = new Date(weekStart);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  const weekLabel = `${weekStart.getFullYear()}年${weekStart.getMonth() + 1}月${weekStart.getDate()}日 〜 ${weekEndDate.getMonth() + 1}月${weekEndDate.getDate()}日`;
+  const monthLabel = `${viewMonth.year}年${viewMonth.month + 1}月`;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
@@ -124,284 +461,173 @@ export default function AdminPage() {
             <h1 className="text-xl font-bold text-gray-800">管理者画面</h1>
             <p className="text-sm text-gray-500 mt-1">予約カレンダー</p>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            予約ページ →
-          </Link>
+          <Link href="/" className="text-sm text-blue-600 hover:text-blue-800">予約ページ →</Link>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats */}
         <div className="grid grid-cols-4 gap-3 mb-6">
-          {(
-            [
-              { key: "all", label: "全件", color: "bg-white" },
-              { key: "confirmed", label: "予約確定", color: "bg-green-50" },
-              { key: "completed", label: "診察済", color: "bg-blue-50" },
-              { key: "cancelled", label: "キャンセル", color: "bg-gray-50" },
-            ] as const
-          ).map((s) => (
-            <div
-              key={s.key}
-              className={`rounded-xl p-3 text-center border border-gray-200 ${s.color}`}
-            >
+          {([
+            { key: "all", label: "全件", color: "bg-white" },
+            { key: "confirmed", label: "予約確定", color: "bg-green-50" },
+            { key: "completed", label: "診察済", color: "bg-blue-50" },
+            { key: "cancelled", label: "キャンセル", color: "bg-gray-50" },
+          ] as const).map((s) => (
+            <div key={s.key} className={`rounded-xl p-3 text-center border border-gray-200 ${s.color}`}>
               <p className="text-2xl font-bold text-gray-800">{counts[s.key]}</p>
               <p className="text-xs text-gray-500">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Calendar Navigation */}
+        {/* View Toggle + Navigation */}
         <div className="bg-white rounded-xl shadow-sm mb-4">
           <div className="flex items-center justify-between p-4 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <button
-                onClick={goPrev}
-                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600"
-              >
-                ◀
+              <button onClick={viewMode === "week" ? goPrevWeek : goPrevMonth}
+                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600">◀</button>
+              <button onClick={viewMode === "week" ? goThisWeek : goThisMonth}
+                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                {viewMode === "week" ? "今週" : "今月"}
               </button>
-              <button
-                onClick={goThisWeek}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                今週
-              </button>
-              <button
-                onClick={goNext}
-                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600"
-              >
-                ▶
-              </button>
+              <button onClick={viewMode === "week" ? goNextWeek : goNextMonth}
+                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600">▶</button>
             </div>
-            <p className="font-bold text-gray-800">{weekLabel}</p>
+
+            <p className="font-bold text-gray-800">
+              {viewMode === "week" ? weekLabel : monthLabel}
+            </p>
+
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              <button onClick={() => setViewMode("week")}
+                className={`px-3 py-1 text-sm rounded-md transition font-medium ${
+                  viewMode === "week" ? "bg-white shadow text-gray-800" : "text-gray-500"
+                }`}>週</button>
+              <button onClick={() => setViewMode("month")}
+                className={`px-3 py-1 text-sm rounded-md transition font-medium ${
+                  viewMode === "month" ? "bg-white shadow text-gray-800" : "text-gray-500"
+                }`}>月</button>
+            </div>
           </div>
 
-          {/* Calendar Grid */}
-          <div className="overflow-x-auto">
-            <div className="min-w-[700px]">
-              {/* Day Headers */}
-              <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200">
-                <div className="p-2"></div>
-                {days.map((d) => {
-                  const dayOfWeek = d.getDay();
-                  const isSun = dayOfWeek === 0;
-                  const isSat = dayOfWeek === 6;
-                  const today = isToday(d);
-                  return (
-                    <div
-                      key={d.toISOString()}
-                      className={`p-2 text-center border-l border-gray-100 ${today ? "bg-blue-50" : ""}`}
-                    >
-                      <p
-                        className={`text-xs ${
-                          isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-gray-500"
-                        }`}
-                      >
-                        {WEEKDAYS[dayOfWeek]}
-                      </p>
-                      <p
-                        className={`text-lg font-bold ${
-                          today
-                            ? "bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto"
-                            : isSun
-                              ? "text-red-500"
-                              : isSat
-                                ? "text-blue-500"
-                                : "text-gray-800"
-                        }`}
-                      >
-                        {d.getDate()}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Time Grid */}
-              <div
-                className="grid grid-cols-[60px_repeat(7,1fr)] relative"
-                style={{ height: HOURS.length * HOUR_HEIGHT }}
-              >
-                {/* Time Labels */}
-                <div className="relative">
-                  {HOURS.map((h, i) => (
-                    <div
-                      key={h}
-                      className="absolute w-full text-right pr-2 text-xs text-gray-400"
-                      style={{ top: i * HOUR_HEIGHT - 8 }}
-                    >
-                      {`${h}:00`}
-                    </div>
-                  ))}
+          {/* ─── Week View ─── */}
+          {viewMode === "week" && (
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-200">
+                  <div className="p-2"></div>
+                  {days.map((d) => {
+                    const dow = d.getDay();
+                    const isSun = dow === 0;
+                    const isSat = dow === 6;
+                    const isT = isSameDay(d, today);
+                    return (
+                      <div key={d.toISOString()} className={`p-2 text-center border-l border-gray-100 ${isT ? "bg-blue-50" : ""}`}>
+                        <p className={`text-xs ${isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-gray-500"}`}>
+                          {WEEKDAYS[dow]}
+                        </p>
+                        <p className={`text-lg font-bold ${
+                          isT ? "bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mx-auto"
+                            : isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-gray-800"
+                        }`}>{d.getDate()}</p>
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {/* Day Columns */}
-                {days.map((d) => {
-                  const dayBookings = getBookingsForDay(d);
-                  const today = isToday(d);
-                  return (
-                    <div
-                      key={d.toISOString()}
-                      className={`relative border-l border-gray-100 ${today ? "bg-blue-50/30" : ""}`}
-                    >
-                      {/* Hour lines */}
-                      {HOURS.map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-full border-t border-gray-100"
-                          style={{ top: i * HOUR_HEIGHT }}
-                        />
-                      ))}
-                      {/* Half-hour lines */}
-                      {HOURS.map((_, i) => (
-                        <div
-                          key={`half-${i}`}
-                          className="absolute w-full border-t border-gray-50"
-                          style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
-                        />
-                      ))}
-
-                      {/* Booking blocks */}
-                      {dayBookings.map((booking) => {
-                        const pos = getBookingPosition(booking);
-                        return (
-                          <button
-                            key={booking.id}
-                            onClick={() => setSelectedBooking(booking)}
-                            className={`absolute left-0.5 right-0.5 rounded border-l-3 px-1 overflow-hidden cursor-pointer hover:opacity-80 transition text-left ${statusColors[booking.status]}`}
-                            style={{
-                              top: pos.top,
-                              height: pos.height,
-                              borderLeftWidth: "3px",
-                            }}
-                          >
-                            <p className="text-[10px] font-bold truncate">
-                              {booking.time} {booking.pet?.petName || booking.name}
-                            </p>
-                            <p className="text-[9px] truncate opacity-75">
-                              {booking.consultationType} ・ {booking.name}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                <div className="grid grid-cols-[60px_repeat(7,1fr)] relative" style={{ height: HOURS.length * HOUR_HEIGHT }}>
+                  <div className="relative">
+                    {HOURS.map((h, i) => (
+                      <div key={h} className="absolute w-full text-right pr-2 text-xs text-gray-400" style={{ top: i * HOUR_HEIGHT - 8 }}>
+                        {`${h}:00`}
+                      </div>
+                    ))}
+                  </div>
+                  {days.map((d) => {
+                    const dayBookings = getBookingsForDay(d);
+                    const isT = isSameDay(d, today);
+                    return (
+                      <div key={d.toISOString()} className={`relative border-l border-gray-100 ${isT ? "bg-blue-50/30" : ""}`}>
+                        {HOURS.map((_, i) => (
+                          <div key={i} className="absolute w-full border-t border-gray-100" style={{ top: i * HOUR_HEIGHT }} />
+                        ))}
+                        {HOURS.map((_, i) => (
+                          <div key={`h-${i}`} className="absolute w-full border-t border-gray-50" style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
+                        ))}
+                        {dayBookings.map((booking) => {
+                          const pos = getBookingPosition(booking);
+                          return (
+                            <button key={booking.id} onClick={() => setSelectedBooking(booking)}
+                              className={`absolute left-0.5 right-0.5 rounded px-1 overflow-hidden cursor-pointer hover:opacity-80 transition text-left ${statusColors[booking.status]}`}
+                              style={{ top: pos.top, height: pos.height, borderLeftWidth: "3px" }}>
+                              <p className="text-[10px] font-bold truncate">{booking.time} {booking.pet?.petName || booking.name}</p>
+                              <p className="text-[9px] truncate opacity-75">{booking.consultationType} ・ {booking.name}</p>
+                              <p className="text-[9px] truncate opacity-60">{booking.pet?.petSpecies}{booking.pet?.petBreed ? ` / ${booking.pet.petBreed}` : ""}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* ─── Month View ─── */}
+          {viewMode === "month" && (
+            <div>
+              <div className="grid grid-cols-7 border-b border-gray-200">
+                {["月", "火", "水", "木", "金", "土", "日"].map((d, i) => (
+                  <div key={d} className={`p-2 text-center text-xs font-medium ${
+                    i === 6 ? "text-red-500" : i === 5 ? "text-blue-500" : "text-gray-500"
+                  }`}>{d}</div>
+                ))}
+              </div>
+              {monthWeeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 border-b border-gray-50">
+                  {week.map((d, di) => {
+                    if (!d) return <div key={di} className="p-1 min-h-[100px] bg-gray-50/50 border-l border-gray-50" />;
+                    const dayBookings = getBookingsForDay(d);
+                    const isT = isSameDay(d, today);
+                    const dow = d.getDay();
+                    const isSun = dow === 0;
+                    const isSat = dow === 6;
+                    return (
+                      <div key={di} className={`p-1 min-h-[100px] border-l border-gray-50 ${isT ? "bg-blue-50/50" : ""}`}>
+                        <p className={`text-xs font-medium mb-1 ${
+                          isT ? "bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                            : isSun ? "text-red-500" : isSat ? "text-blue-500" : "text-gray-600"
+                        }`}>{d.getDate()}</p>
+                        <div className="space-y-0.5">
+                          {dayBookings.slice(0, 3).map((booking) => (
+                            <button key={booking.id} onClick={() => setSelectedBooking(booking)}
+                              className={`w-full text-left px-1 py-0.5 rounded text-[10px] truncate cursor-pointer hover:opacity-80 transition ${statusColors[booking.status]}`}>
+                              {booking.time} {booking.pet?.petName || booking.name}
+                            </button>
+                          ))}
+                          {dayBookings.length > 3 && (
+                            <p className="text-[10px] text-gray-400 px-1">+{dayBookings.length - 3}件</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Booking Detail Modal */}
+      {/* Modal */}
       {selectedBooking && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedBooking(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">予約詳細</h3>
-              <button
-                onClick={() => setSelectedBooking(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[selectedBooking.status]}`}
-                >
-                  {statusLabels[selectedBooking.status]}
-                </span>
-                {selectedBooking.consultationType && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-                    {selectedBooking.consultationType}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-400">日時</p>
-                <p className="font-medium text-gray-800">
-                  {(() => {
-                    const d = new Date(selectedBooking.date + "T00:00:00");
-                    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`;
-                  })()}{" "}
-                  {selectedBooking.time}
-                </p>
-              </div>
-
-              {selectedBooking.pet && (
-                <div>
-                  <p className="text-xs text-gray-400">ペット情報</p>
-                  <p className="font-medium text-gray-800">
-                    {selectedBooking.pet.petName}（{selectedBooking.pet.petNameKana}）
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {selectedBooking.pet.petSpecies}
-                    {selectedBooking.pet.petBreed ? ` / ${selectedBooking.pet.petBreed}` : ""}
-                    ・{selectedBooking.pet.petSex}
-                    {selectedBooking.pet.petBirthDate ? ` ・ ${selectedBooking.pet.petBirthDate}` : ""}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs text-gray-400">飼い主</p>
-                <p className="font-medium text-gray-800">{selectedBooking.name}</p>
-                <p className="text-sm text-gray-600">{selectedBooking.phone}</p>
-                {selectedBooking.email && (
-                  <p className="text-sm text-gray-600">{selectedBooking.email}</p>
-                )}
-              </div>
-
-              {selectedBooking.symptoms && (
-                <div>
-                  <p className="text-xs text-gray-400">症状</p>
-                  <p className="text-sm text-gray-800">{selectedBooking.symptoms}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2 pt-3 border-t border-gray-100">
-              {selectedBooking.status !== "confirmed" && (
-                <button
-                  onClick={() => handleStatusChange(selectedBooking.id, "confirmed")}
-                  className="text-xs px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition font-medium"
-                >
-                  予約確定に戻す
-                </button>
-              )}
-              {selectedBooking.status !== "completed" && (
-                <button
-                  onClick={() => handleStatusChange(selectedBooking.id, "completed")}
-                  className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-medium"
-                >
-                  診察済にする
-                </button>
-              )}
-              {selectedBooking.status !== "cancelled" && (
-                <button
-                  onClick={() => handleStatusChange(selectedBooking.id, "cancelled")}
-                  className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition font-medium"
-                >
-                  キャンセル
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <EditModal
+          booking={selectedBooking}
+          onSave={handleSave}
+          onClose={() => setSelectedBooking(null)}
+          onStatusChange={handleStatusChange}
+        />
       )}
     </div>
   );
