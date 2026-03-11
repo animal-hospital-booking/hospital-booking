@@ -23,13 +23,15 @@ function formatDate(dateStr: string) {
 const statusLabels: Record<Booking["status"], string> = {
   confirmed: "予約確定",
   cancelled: "キャンセル済",
-  completed: "診察済",
+  completed: "来院済み",
+  no_show: "無断キャンセル",
 };
 
 const statusColors: Record<Booking["status"], string> = {
   confirmed: "bg-green-100 text-green-700",
   cancelled: "bg-gray-100 text-gray-500",
   completed: "bg-blue-100 text-blue-700",
+  no_show: "bg-red-100 text-red-700",
 };
 
 // ─── Edit Modal ───

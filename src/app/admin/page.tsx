@@ -34,12 +34,14 @@ const statusColors: Record<Booking["status"], string> = {
   confirmed: "bg-green-200 border-green-400 text-green-900",
   cancelled: "bg-gray-200 border-gray-400 text-gray-500",
   completed: "bg-blue-200 border-blue-400 text-blue-900",
+  no_show: "bg-red-200 border-red-400 text-red-900",
 };
 
 const statusLabels: Record<Booking["status"], string> = {
   confirmed: "予約確定",
   cancelled: "キャンセル済",
-  completed: "診察済",
+  completed: "来院済み",
+  no_show: "無断キャンセル",
 };
 
 function getWeekStart(date: Date): Date {
@@ -230,7 +232,7 @@ function EditModal({
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
                 {booking.status !== "confirmed" && (
                   <button onClick={() => onStatusChange(booking.id, "confirmed")}
                     className="text-xs px-3 py-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition font-medium">
@@ -240,13 +242,19 @@ function EditModal({
                 {booking.status !== "completed" && (
                   <button onClick={() => onStatusChange(booking.id, "completed")}
                     className="text-xs px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-medium">
-                    診察済にする
+                    来院済みにする
                   </button>
                 )}
                 {booking.status !== "cancelled" && (
                   <button onClick={() => onStatusChange(booking.id, "cancelled")}
-                    className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition font-medium">
+                    className="text-xs px-3 py-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 transition font-medium">
                     キャンセル
+                  </button>
+                )}
+                {booking.status !== "no_show" && (
+                  <button onClick={() => onStatusChange(booking.id, "no_show")}
+                    className="text-xs px-3 py-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition font-medium">
+                    無断キャンセル
                   </button>
                 )}
               </div>
@@ -382,6 +390,8 @@ export default function AdminPage() {
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [filterStatus, setFilterStatus] = useState<"all" | Booking["status"]>("all");
+  const [filterConsultation, setFilterConsultation] = useState<string>("all");
   const [gcalReady, setGcalReady] = useState(false);
   const [gcalConnected, setGcalConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -514,7 +524,16 @@ export default function AdminPage() {
 
   const getBookingsForDay = (date: Date) => {
     const dateStr = formatDateStr(date);
-    return bookings.filter((b) => b.date === dateStr && b.status !== "cancelled");
+    let filtered = bookings.filter((b) => b.date === dateStr);
+    if (filterStatus !== "all") {
+      filtered = filtered.filter((b) => b.status === filterStatus);
+    } else {
+      filtered = filtered.filter((b) => b.status !== "cancelled" && b.status !== "no_show");
+    }
+    if (filterConsultation !== "all") {
+      filtered = filtered.filter((b) => b.consultationType === filterConsultation);
+    }
+    return filtered;
   };
 
   const getBookingPosition = (booking: Booking) => {
@@ -546,11 +565,12 @@ export default function AdminPage() {
 
   // Stats
   const todayStr = formatDateStr(today);
-  const todayBookings = bookings.filter((b) => b.date === todayStr && b.status !== "cancelled");
+  const todayBookings = bookings.filter((b) => b.date === todayStr && b.status !== "cancelled" && b.status !== "no_show");
   const counts = {
     today: todayBookings.length,
     completed: bookings.filter((b) => b.status === "completed").length,
     cancelled: bookings.filter((b) => b.status === "cancelled").length,
+    no_show: bookings.filter((b) => b.status === "no_show").length,
   };
 
   // Week label
@@ -598,17 +618,75 @@ export default function AdminPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-4 gap-3 mb-4">
           {([
             { key: "today", label: "本日の診察", color: "bg-white" },
-            { key: "completed", label: "診察済", color: "bg-blue-50" },
+            { key: "completed", label: "来院済み", color: "bg-blue-50" },
             { key: "cancelled", label: "キャンセル", color: "bg-gray-50" },
+            { key: "no_show", label: "無断キャンセル", color: "bg-red-50" },
           ] as const).map((s) => (
             <div key={s.key} className={`rounded-xl p-3 text-center border border-gray-200 ${s.color}`}>
               <p className="text-2xl font-bold text-gray-800">{counts[s.key]}</p>
               <p className="text-xs text-gray-500">{s.label}</p>
             </div>
           ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3 mb-4 bg-white rounded-xl shadow-sm p-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">ステータス:</span>
+            <div className="flex gap-1">
+              {([
+                { key: "all", label: "すべて" },
+                { key: "confirmed", label: "予約確定" },
+                { key: "completed", label: "来院済み" },
+                { key: "cancelled", label: "キャンセル" },
+                { key: "no_show", label: "無断" },
+              ] as const).map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setFilterStatus(s.key)}
+                  className={`text-xs px-2 py-1 rounded-lg transition font-medium ${
+                    filterStatus === s.key
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-px h-6 bg-gray-200" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">診療メニュー:</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setFilterConsultation("all")}
+                className={`text-xs px-2 py-1 rounded-lg transition font-medium ${
+                  filterConsultation === "all"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                すべて
+              </button>
+              {CONSULTATION_TYPES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setFilterConsultation(t)}
+                  className={`text-xs px-2 py-1 rounded-lg transition font-medium ${
+                    filterConsultation === t
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* View Toggle + Navigation */}
