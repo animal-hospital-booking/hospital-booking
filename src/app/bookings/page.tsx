@@ -10,6 +10,9 @@ import {
 } from "@/lib/api/bookings";
 import type { PetInfo } from "@/lib/bookings";
 import { useLiff } from "@/components/LiffProvider";
+import { config, getTheme } from "@/lib/config";
+
+const theme = getTheme();
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 const CONSULTATION_TYPES = ["初診", "再診", "狂犬病", "相談"];
@@ -96,11 +99,11 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">診察内容</label>
             <div className="grid grid-cols-4 gap-1">
-              {CONSULTATION_TYPES.map((t) => (
-                <button key={t} type="button" onClick={() => setConsultationType(t)}
+              {CONSULTATION_TYPES.map((ct) => (
+                <button key={ct} type="button" onClick={() => setConsultationType(ct)}
                   className={`py-1.5 text-xs rounded-lg border transition ${
-                    consultationType === t ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
-                  }`}>{t}</button>
+                    consultationType === ct ? `${theme.primary} text-white ${theme.border}` : `border-gray-200 text-gray-600 ${theme.primaryLight}`
+                  }`}>{ct}</button>
               ))}
             </div>
           </div>
@@ -108,12 +111,12 @@ function EditModal({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">日付</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">時間</label>
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
           </div>
 
@@ -125,22 +128,22 @@ function EditModal({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">名前</label>
               <input type="text" value={petName} onChange={(e) => setPetName(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">フリガナ</label>
               <input type="text" value={petNameKana} onChange={(e) => setPetNameKana(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">ペットの種類</label>
             <div className="grid grid-cols-3 gap-1">
-              {PET_SPECIES.map((s) => (
-                <button key={s} type="button" onClick={() => setPetSpecies(s)}
+              {PET_SPECIES.map((sp) => (
+                <button key={sp} type="button" onClick={() => setPetSpecies(sp)}
                   className={`py-1.5 text-xs rounded-lg border transition ${
-                    petSpecies === s ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
-                  }`}>{s}</button>
+                    petSpecies === sp ? `${theme.primary} text-white ${theme.border}` : `border-gray-200 text-gray-600 ${theme.primaryLight}`
+                  }`}>{sp}</button>
               ))}
             </div>
           </div>
@@ -148,16 +151,16 @@ function EditModal({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">品種</label>
               <input type="text" value={petBreed} onChange={(e) => setPetBreed(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">性別</label>
               <div className="grid grid-cols-3 gap-1">
-                {PET_SEX_OPTIONS.map((s) => (
-                  <button key={s} type="button" onClick={() => setPetSex(s)}
+                {PET_SEX_OPTIONS.map((sx) => (
+                  <button key={sx} type="button" onClick={() => setPetSex(sx)}
                     className={`py-1.5 text-xs rounded-lg border transition ${
-                      petSex === s ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600 hover:bg-blue-50"
-                    }`}>{s}</button>
+                      petSex === sx ? `${theme.primary} text-white ${theme.border}` : `border-gray-200 text-gray-600 ${theme.primaryLight}`
+                    }`}>{sx}</button>
                 ))}
               </div>
             </div>
@@ -165,7 +168,7 @@ function EditModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">生年月日</label>
             <input type="date" value={petBirthDate} onChange={(e) => setPetBirthDate(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
           </div>
 
           <hr className="border-gray-100" />
@@ -176,28 +179,28 @@ function EditModal({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">お名前</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">電話番号</label>
               <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">メール</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring}`} />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">症状</label>
             <textarea value={symptoms} onChange={(e) => setSymptoms(e.target.value)} rows={2}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              className={`w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 ${theme.ring} resize-none`} />
           </div>
 
           <button
             onClick={handleSave}
-            className="w-full py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+            className={`w-full py-2 rounded-lg ${theme.primary} text-white ${theme.primaryHover} transition font-medium`}
           >
             変更を保存する
           </button>
@@ -239,12 +242,12 @@ export default function BookingsPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-blue-700">予約一覧</h1>
+            <h1 className={`text-xl font-bold ${theme.textDark}`}>予約一覧</h1>
             <p className="text-sm text-gray-500 mt-1">あなたの予約を確認できます</p>
           </div>
           <Link
             href="/"
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className={`text-sm ${theme.text} hover:opacity-80`}
           >
             新規予約 →
           </Link>
@@ -257,7 +260,7 @@ export default function BookingsPage() {
             <p className="text-gray-400 mb-4">予約がありません</p>
             <Link
               href="/"
-              className="inline-block py-2 px-6 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+              className={`inline-block py-2 px-6 rounded-lg ${theme.primary} text-white ${theme.primaryHover} transition font-medium`}
             >
               予約する
             </Link>
@@ -274,7 +277,7 @@ export default function BookingsPage() {
                     <p className="font-bold text-gray-800">
                       {formatDate(booking.date)}
                     </p>
-                    <p className="text-blue-600 font-medium">{booking.time}</p>
+                    <p className={`${theme.text} font-medium`}>{booking.time}</p>
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[booking.status]}`}
@@ -285,7 +288,7 @@ export default function BookingsPage() {
                 <div className="text-sm text-gray-600 space-y-1">
                   {booking.consultationType && (
                     <p>
-                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${theme.badge}`}>
                         {booking.consultationType}
                       </span>
                     </p>
@@ -315,7 +318,7 @@ export default function BookingsPage() {
                   <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
                     <button
                       onClick={() => setEditingBooking(booking)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className={`text-sm ${theme.text} hover:opacity-80 font-medium`}
                     >
                       変更する
                     </button>

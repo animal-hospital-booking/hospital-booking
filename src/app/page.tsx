@@ -9,8 +9,10 @@ import PatientForm from "@/components/PatientForm";
 import { createBooking } from "@/lib/api/bookings";
 import { sendConfirmationEmail } from "@/lib/email";
 import { useLiff } from "@/components/LiffProvider";
+import { config, getTheme } from "@/lib/config";
 
 type Step = "consultation" | "schedule" | "pet" | "patient" | "confirm" | "done";
+const t = getTheme();
 
 export default function Home() {
   const [step, setStep] = useState<Step>("consultation");
@@ -93,14 +95,14 @@ export default function Home() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-blue-700">クリニック予約</h1>
+            <h1 className={`text-xl font-bold ${t.textDark}`}>{config.hospitalName}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              オンライン診療予約システム
+              {config.hospitalSubtitle}
             </p>
           </div>
           <Link
             href="/bookings"
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className={`text-sm ${t.text} hover:opacity-80`}
           >
             予約一覧 →
           </Link>
@@ -116,14 +118,14 @@ export default function Home() {
               <div key={s.key} className="flex items-center gap-1">
                 {i > 0 && (
                   <div
-                    className={`w-5 h-0.5 ${isActive ? "bg-blue-500" : "bg-gray-200"}`}
+                    className={`w-5 h-0.5 ${isActive ? t.primary : "bg-gray-200"}`}
                   />
                 )}
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                       isActive
-                        ? "bg-blue-600 text-white"
+                        ? `${t.primary} text-white`
                         : "bg-gray-200 text-gray-400"
                     }`}
                   >
@@ -131,7 +133,7 @@ export default function Home() {
                   </div>
                   <span
                     className={`text-[10px] mt-1 ${
-                      isActive ? "text-blue-600" : "text-gray-400"
+                      isActive ? t.text : "text-gray-400"
                     }`}
                   >
                     {s.label}
@@ -195,7 +197,7 @@ export default function Home() {
           consultationType &&
           petInfo &&
           patientInfo && (
-            <div className="w-full max-w-3xl mx-auto bg-blue-50 rounded-xl p-6">
+            <div className={`w-full max-w-3xl mx-auto ${t.primaryLight} rounded-xl p-6`}>
               <h3 className="text-lg font-bold text-gray-800 mb-4">
                 予約内容の確認
               </h3>
@@ -282,7 +284,7 @@ export default function Home() {
                 <button
                   onClick={handleConfirm}
                   disabled={sending}
-                  className="flex-1 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium disabled:opacity-50"
+                  className={`flex-1 py-2 rounded-lg ${t.primary} text-white ${t.primaryHover} transition font-medium disabled:opacity-50`}
                 >
                   {sending ? "送信中..." : "予約を確定する"}
                 </button>
@@ -312,7 +314,7 @@ export default function Home() {
             <div className="flex gap-3 justify-center">
               <Link
                 href="/bookings"
-                className="py-2 px-6 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+                className={`py-2 px-6 rounded-lg ${t.primary} text-white ${t.primaryHover} transition font-medium`}
               >
                 予約一覧を見る
               </Link>

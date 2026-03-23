@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { fetchBookedTimes } from "@/lib/api/bookings";
+import { fetchAvailableSlots } from "@/lib/api/schedule";
+import { getTheme } from "@/lib/config";
+
+const theme = getTheme();
 
 type WeeklyScheduleProps = {
   onSelect: (date: Date, time: string) => void;
@@ -37,7 +40,7 @@ function getStartOfWeek(): Date {
 
 export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps) {
   const [weekStart, setWeekStart] = useState(getStartOfWeek);
-  const [bookedMap, setBookedMap] = useState<Record<string, string[]>>({});
+  const [availableMap, setAvailableMap] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -45,22 +48,22 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
 
   const days = getWeekDays(weekStart);
 
-  const loadBookedTimes = useCallback(async () => {
+  const loadAvailableSlots = useCallback(async () => {
     setLoading(true);
     const map: Record<string, string[]> = {};
     await Promise.all(
       days.map(async (d) => {
         const dateStr = formatDateStr(d);
-        map[dateStr] = await fetchBookedTimes(dateStr);
+        map[dateStr] = await fetchAvailableSlots(dateStr);
       })
     );
-    setBookedMap(map);
+    setAvailableMap(map);
     setLoading(false);
   }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    loadBookedTimes();
-  }, [loadBookedTimes]);
+    loadAvailableSlots();
+  }, [loadAvailableSlots]);
 
   const canGoPrev = weekStart > today;
 
@@ -81,7 +84,6 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
   };
 
   const isSlotAvailable = (date: Date, time: string) => {
-    if (date.getDay() === 0) return false;
     if (date < today) return false;
     if (date.getTime() === today.getTime()) {
       const now = new Date();
@@ -91,16 +93,15 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
       }
     }
     const dateStr = formatDateStr(date);
-    const booked = bookedMap[dateStr] || [];
-    if (booked.includes(time)) return false;
-    return true;
+    const available = availableMap[dateStr] || [];
+    return available.includes(time);
   };
 
   return (
     <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-4">
       <button
         onClick={onBack}
-        className="text-blue-600 hover:text-blue-800 text-sm mb-3"
+        className={`${theme.text} hover:opacity-80 text-sm mb-3`}
       >
         ← 戻る
       </button>
@@ -169,9 +170,9 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
                         {available ? (
                           <button
                             onClick={() => onSelect(d, time)}
-                            className="w-full py-2 rounded hover:bg-orange-50 transition"
+                            className={`w-full py-2 rounded ${theme.primaryLight} transition`}
                           >
-                            <span className="text-orange-500 font-bold text-base">◎</span>
+                            <span className={`${theme.text} font-bold text-base`}>◎</span>
                           </button>
                         ) : (
                           <span className="text-gray-300 text-base">ー</span>
@@ -187,7 +188,7 @@ export default function WeeklySchedule({ onSelect, onBack }: WeeklyScheduleProps
       </div>
 
       <p className="text-xs text-gray-400 mt-3 text-center">
-        ◎：予約可能 ／ ー：予約不可 ※日曜休診
+        ◎：予約可能 ／ ー：予約不可
       </p>
     </div>
   );

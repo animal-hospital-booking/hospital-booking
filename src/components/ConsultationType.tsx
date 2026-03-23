@@ -1,5 +1,9 @@
 "use client";
 
+import { getTheme } from "@/lib/config";
+
+const theme = getTheme();
+
 type ConsultationTypeProps = {
   selected: string | null;
   onSelect: (type: string) => void;
@@ -23,7 +27,7 @@ export default function ConsultationType({
       {onBack && (
         <button
           onClick={onBack}
-          className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+          className={`${theme.text} hover:opacity-80 text-sm mb-4`}
         >
           ← 戻る
         </button>
@@ -32,18 +36,18 @@ export default function ConsultationType({
         診察内容を選択してください
       </h2>
       <div className="space-y-3">
-        {TYPES.map((t) => (
+        {TYPES.map((item) => (
           <button
-            key={t.key}
-            onClick={() => onSelect(t.key)}
+            key={item.key}
+            onClick={() => onSelect(item.key)}
             className={`w-full text-left p-4 rounded-lg border transition ${
-              selected === t.key
-                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
+              selected === item.key
+                ? `${theme.borderLight} ${theme.primaryLight} ring-2 ring-offset-0`
+                : `border-gray-200 hover:${theme.primaryLight}`
             }`}
           >
-            <p className="font-medium text-gray-800">{t.key}</p>
-            <p className="text-sm text-gray-500">{t.description}</p>
+            <p className="font-medium text-gray-800">{item.key}</p>
+            <p className="text-sm text-gray-500">{item.description}</p>
           </button>
         ))}
       </div>

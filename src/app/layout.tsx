@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LiffProvider from "@/components/LiffProvider";
+import { config } from "@/lib/config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "クリニック予約",
-  description: "オンライン診療予約システム",
+  title: config.hospitalName,
+  description: config.hospitalSubtitle,
 };
 
 export default function RootLayout({

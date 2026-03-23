@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getTheme } from "@/lib/config";
+
+const theme = getTheme();
 
 function toKatakana(str: string): string {
   return str.replace(/[\u3041-\u3096]/g, (ch) =>
@@ -76,7 +79,7 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
     <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-6">
       <button
         onClick={onBack}
-        className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+        className={`${theme.text} hover:opacity-80 text-sm mb-4`}
       >
         ← 戻る
       </button>
@@ -102,7 +105,7 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
               }
             }}
             placeholder="ポチ"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
           {errors.petName && (
             <p className="text-red-500 text-xs mt-1">{errors.petName}</p>
@@ -121,7 +124,7 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
               setKanaEdited(true);
             }}
             placeholder="ポチ"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
           {errors.petNameKana && (
             <p className="text-red-500 text-xs mt-1">{errors.petNameKana}</p>
@@ -140,8 +143,8 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
                 onClick={() => setPetSpecies(s)}
                 className={`py-2 px-3 rounded-lg text-sm font-medium border transition ${
                   petSpecies === s
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                    ? `${theme.primary} text-white ${theme.border}`
+                    : `border-gray-200 text-gray-700 ${theme.primaryLight}`
                 }`}
               >
                 {s}
@@ -162,7 +165,7 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
             value={petBreed}
             onChange={(e) => setPetBreed(e.target.value)}
             placeholder="柴犬、マンチカンなど"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
         </div>
 
@@ -178,8 +181,8 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
                 onClick={() => setPetSex(s)}
                 className={`py-2 px-3 rounded-lg text-sm font-medium border transition ${
                   petSex === s
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+                    ? `${theme.primary} text-white ${theme.border}`
+                    : `border-gray-200 text-gray-700 ${theme.primaryLight}`
                 }`}
               >
                 {s}
@@ -199,13 +202,13 @@ export default function PetForm({ onSubmit, onBack }: PetFormProps) {
             type="date"
             value={petBirthDate}
             onChange={(e) => setPetBirthDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
         </div>
 
         <button
           type="submit"
-          className="w-full py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+          className={`w-full py-2 rounded-lg ${theme.primary} text-white ${theme.primaryHover} transition font-medium`}
         >
           次へ
         </button>

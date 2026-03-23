@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { getTheme } from "@/lib/config";
+
+const theme = getTheme();
 
 type PatientFormProps = {
   onSubmit: (data: {
@@ -48,7 +51,7 @@ export default function PatientForm({ onSubmit, onBack }: PatientFormProps) {
     <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-sm p-6">
       <button
         onClick={onBack}
-        className="text-blue-600 hover:text-blue-800 text-sm mb-4"
+        className={`${theme.text} hover:opacity-80 text-sm mb-4`}
       >
         ← 戻る
       </button>
@@ -63,7 +66,7 @@ export default function PatientForm({ onSubmit, onBack }: PatientFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="山田 太郎"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
           {errors.name && (
             <p className="text-red-500 text-xs mt-1">{errors.name}</p>
@@ -79,7 +82,7 @@ export default function PatientForm({ onSubmit, onBack }: PatientFormProps) {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="090-1234-5678"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
           {errors.phone && (
             <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
@@ -95,7 +98,7 @@ export default function PatientForm({ onSubmit, onBack }: PatientFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="example@mail.com"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent text-gray-800`}
           />
           {errors.email && (
             <p className="text-red-500 text-xs mt-1">{errors.email}</p>
@@ -111,13 +114,13 @@ export default function PatientForm({ onSubmit, onBack }: PatientFormProps) {
             onChange={(e) => setSymptoms(e.target.value)}
             placeholder="気になる症状があればご記入ください"
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 ${theme.ring} focus:border-transparent resize-none text-gray-800`}
           />
         </div>
 
         <button
           type="submit"
-          className="w-full py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
+          className={`w-full py-2 rounded-lg ${theme.primary} text-white ${theme.primaryHover} transition font-medium`}
         >
           確認画面へ
         </button>
